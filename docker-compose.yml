@@ -1,8 +1,7 @@
-version: "3.8"
-
 services:
   flask_app:
-    image: flask_app:latest
+    build:
+      context: ./flask_app
     container_name: flask_app
     ports:
       - "5000:5000"
@@ -10,7 +9,8 @@ services:
       - sensor_network
 
   sensor_air_4:
-    image: sensor:latest
+    build:
+      context: ./sensors
     container_name: sensor_air_4
     volumes:
       - ./sensors/config-air-4.env:/app/config.env:ro
@@ -18,7 +18,8 @@ services:
       - sensor_network
 
   sensor_air_5:
-    image: sensor:latest
+    build:
+      context: ./sensors
     container_name: sensor_air_5
     volumes:
       - ./sensors/config-air-5.env:/app/config.env:ro
@@ -26,7 +27,8 @@ services:
       - sensor_network
 
   sensor_co2_6:
-    image: sensor:latest
+    build:
+      context: ./sensors
     container_name: sensor_co2_6
     volumes:
       - ./sensors/config-co2-6.env:/app/config.env:ro
@@ -34,7 +36,8 @@ services:
       - sensor_network
 
   sensor_co2_7:
-    image: sensor:latest
+    build:
+      context: ./sensors
     container_name: sensor_co2_7
     volumes:
       - ./sensors/config-co2-7.env:/app/config.env:ro
@@ -42,7 +45,8 @@ services:
       - sensor_network
 
   sensor_pressure_8:
-    image: sensor:latest
+    build:
+      context: ./sensors
     container_name: sensor_pressure_8
     volumes:
       - ./sensors/config-pressure-8.env:/app/config.env:ro
@@ -50,7 +54,8 @@ services:
       - sensor_network
 
   sensor_pressure_9:
-    image: sensor:latest
+    build:
+      context: ./sensors
     container_name: sensor_pressure_9
     volumes:
       - ./sensors/config-pressure-9.env:/app/config.env:ro
@@ -58,7 +63,8 @@ services:
       - sensor_network
 
   sensor_temperature_1:
-    image: sensor:latest
+    build:
+      context: ./sensors
     container_name: sensor_temperature_1
     volumes:
       - ./sensors/config-temperature-1.env:/app/config.env:ro
@@ -66,7 +72,8 @@ services:
       - sensor_network
 
   sensor_temperature_2:
-    image: sensor:latest
+    build:
+      context: ./sensors
     container_name: sensor_temperature_2
     volumes:
       - ./sensors/config-temperature-2.env:/app/config.env:ro
@@ -74,7 +81,8 @@ services:
       - sensor_network
 
   sensor_temperature_3:
-    image: sensor:latest
+    build:
+      context: ./sensors
     container_name: sensor_temperature_3
     volumes:
       - ./sensors/config-temperature-3.env:/app/config.env:ro
