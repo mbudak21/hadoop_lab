@@ -36,10 +36,10 @@ def main():
 
     # Mapping sensor type to its unit.
     unit_mapping = {
-        "Temperature Sensor": "°C",
-        "Pressure Sensor": "hPa",
-        "Air Quality Sensor": "PM10",
-        "CO2 Sensor": "ppm"
+        "TemperatureSensor": "°C",
+        "PressureSensor": "hPa",
+        "AirQualitySensor": "PM10",
+        "CO2Sensor": "ppm"
     }
     unit = unit_mapping.get(sensor_type, "")
 
