@@ -144,7 +144,6 @@ def retrieve_sensor_data():
         }
         table {
             border-collapse: collapse;
-            width: 60%;
             margin-bottom: 20px;
         }
         th, td {
