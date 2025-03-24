@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response, Response
 import sqlite3
 import os
 from io import StringIO
@@ -93,6 +93,7 @@ def submit_sensor_data():
         conn.commit()
     return jsonify({"status": "success"}), 201
 
+
 @app.route('/retrieve', methods=['GET'])
 def retrieve_sensor_data():
     sensor_id = request.args.get("sensor_id")
@@ -103,27 +104,97 @@ def retrieve_sensor_data():
         return jsonify({"error": "Missing query parameters"}), 400
 
     with get_db() as conn:
-        # Join measurements with sensor_types to include type and unit info.
+        # Запрашиваем все измерения и связываем с таблицей sensor_types,
+        # чтобы получить sensor_type и unit.
         cursor = conn.execute('''
             SELECT st.sensor_type, st.unit, m.timestamp, m.value
             FROM measurements m
             JOIN sensor_types st ON m.type_id = st.type_id
-            WHERE m.sensor_id = ? AND m.timestamp BETWEEN ? AND ?
+            WHERE m.sensor_id = ?
+              AND m.timestamp BETWEEN ? AND ?
             ORDER BY m.timestamp ASC
         ''', (sensor_id, start_time, end_time))
         rows = cursor.fetchall()
 
-    # Group the data by sensor type.
+    # Группируем данные по sensor_type
     grouped = {}
     for row in rows:
         stype = row["sensor_type"]
         if stype not in grouped:
-            grouped[stype] = {"unit": row["unit"], "data": []}
-        grouped[stype]["data"].append({
+            grouped[stype] = {
+                "unit": row["unit"],
+                "measurements": []
+            }
+        grouped[stype]["measurements"].append({
             "timestamp": row["timestamp"],
             "value": row["value"]
         })
-    return jsonify(grouped)
+
+    # Начинаем формировать HTML
+    html_parts = ["""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Sensor Data</title>
+    <style>
+        body {
+            font-family: Consolas, monospace;
+            margin: 20px;
+        }
+        table {
+            border-collapse: collapse;
+            width: 60%;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        h2 {
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+"""]
+
+    # Для каждого типа сенсора отдельная секция
+    for stype, info in grouped.items():
+        unit = info["unit"]
+        measurements = info["measurements"]
+
+        html_parts.append(f"<h2>{stype}</h2>")
+        html_parts.append("""
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+        """)
+
+        for m in measurements:
+            timestamp = m["timestamp"]
+            value = m["value"]
+            # Значение можно вывести вместе с единицей измерения
+            html_parts.append(f"<tr><td>{timestamp}</td><td>{value} {unit}</td></tr>")
+
+        html_parts.append("</tbody></table>")
+
+    # Закрываем теги body и html
+    html_parts.append("</body></html>")
+
+    # Склеиваем части в одну строку
+    html_content = "".join(html_parts)
+
+    # Возвращаем HTML-ответ
+    return Response(html_content, mimetype='text/html')
 
 @app.route('/fetch', methods=['GET'])
 def fetch_sensor_type_data():

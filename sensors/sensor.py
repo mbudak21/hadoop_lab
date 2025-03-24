@@ -53,7 +53,7 @@ def main():
         # Generate timestamp in UTC format: "YYYY-MM-DD HH:MM UTC"
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M") + " UTC"
         # Generate a random value between min_value and max_value.
-        value = random.uniform(min_value, max_value)
+        value = round(random.uniform(min_value, max_value), 2)
         payload = {
             "sensor_id": sensor_id,
             "sensor_location": {"latitude": sensor_latitude, "longitude": sensor_longitude},
