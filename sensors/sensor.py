@@ -41,7 +41,7 @@ def main():
         "AirQualitySensor": "PM10",
         "CO2Sensor": "ppm"
     }
-    unit = unit_mapping.get(sensor_type, "")
+    unit = unit_mapping[sensor_type]
 
     print("Starting virtual sensor with the following configuration:")
     print(f"Sensor ID: {sensor_id}, Location: ({sensor_latitude}, {sensor_longitude})")
