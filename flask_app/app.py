@@ -152,6 +152,15 @@ def fetch_sensor_type_data():
     response.headers["Content-Type"] = "text/plain"
     return response
 
+#@app.route('/test', methods=['GET'])
+#def test_sensor_types():
+#    with get_db() as conn:
+#        cursor = conn.execute('SELECT * FROM sensor_types')
+#        rows = cursor.fetchall()
+#        # Преобразуем строки в список словарей для корректного JSON-формата.
+#        sensor_types = [dict(row) for row in rows]
+#    return jsonify(sensor_types)
+
 if __name__ == '__main__':
     if not os.path.exists(DATABASE):
         init_db()
