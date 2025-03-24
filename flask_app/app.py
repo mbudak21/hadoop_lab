@@ -50,7 +50,7 @@ def submit_sensor_data():
     # {
     #   "sensor_id": 1,
     #   "sensor_location": {"latitude": 12.34, "longitude": 56.78},
-    #   "sensor_type": "Temperature",
+    #   "sensor_type": "TemperatureSensor",
     #   "unit": "°C",
     #   "timestamp": "2025-02-24 12:34",
     #   "value": 13.9
@@ -104,8 +104,6 @@ def retrieve_sensor_data():
         return jsonify({"error": "Missing query parameters"}), 400
 
     with get_db() as conn:
-        # Запрашиваем все измерения и связываем с таблицей sensor_types,
-        # чтобы получить sensor_type и unit.
         cursor = conn.execute('''
             SELECT st.sensor_type, st.unit, m.timestamp, m.value
             FROM measurements m
@@ -116,7 +114,6 @@ def retrieve_sensor_data():
         ''', (sensor_id, start_time, end_time))
         rows = cursor.fetchall()
 
-    # Группируем данные по sensor_type
     grouped = {}
     for row in rows:
         stype = row["sensor_type"]
@@ -130,7 +127,6 @@ def retrieve_sensor_data():
             "value": row["value"]
         })
 
-    # Начинаем формировать HTML
     html_parts = ["""
 <!DOCTYPE html>
 <html>
@@ -161,7 +157,6 @@ def retrieve_sensor_data():
 <body>
 """]
 
-    # Для каждого типа сенсора отдельная секция
     for stype, info in grouped.items():
         unit = info["unit"]
         measurements = info["measurements"]
@@ -181,18 +176,14 @@ def retrieve_sensor_data():
         for m in measurements:
             timestamp = m["timestamp"]
             value = m["value"]
-            # Значение можно вывести вместе с единицей измерения
             html_parts.append(f"<tr><td>{timestamp}</td><td>{value} {unit}</td></tr>")
 
         html_parts.append("</tbody></table>")
 
-    # Закрываем теги body и html
     html_parts.append("</body></html>")
 
-    # Склеиваем части в одну строку
     html_content = "".join(html_parts)
 
-    # Возвращаем HTML-ответ
     return Response(html_content, mimetype='text/html')
 
 @app.route('/fetch', methods=['GET'])
@@ -202,7 +193,6 @@ def fetch_sensor_type_data():
         return jsonify({"error": "Missing sensor type parameter"}), 400
 
     with get_db() as conn:
-        # Retrieve all measurements for the given sensor type.
         cursor = conn.execute('''
             SELECT s.sensor_id, s.latitude, s.longitude, st.sensor_type, st.unit, m.timestamp, m.value
             FROM measurements m
@@ -222,14 +212,36 @@ def fetch_sensor_type_data():
     response.headers["Content-Type"] = "text/plain"
     return response
 
-#@app.route('/test', methods=['GET'])
-#def test_sensor_types():
-#    with get_db() as conn:
-#        cursor = conn.execute('SELECT * FROM sensor_types')
-#        rows = cursor.fetchall()
-#        # Преобразуем строки в список словарей для корректного JSON-формата.
-#        sensor_types = [dict(row) for row in rows]
-#    return jsonify(sensor_types)
+@app.route('/add_sensor_type', methods=['POST'])
+def add_sensor_type():
+    """
+    To add new sensor type use this example: curl -X POST  -H "Content-Type: application/json"  -d '{"sensor_type": "HumiditySensor", "unit": "%"}' http://192.168.88.131:5000/add_sensor_type
+    """
+    data = request.get_json()
+    sensor_type = data.get('sensor_type')
+    unit = data.get('unit')
+    if not sensor_type or not unit:
+        return jsonify({"error": "Missing sensor_type or unit"}), 400
+
+    with get_db() as conn:
+        try:
+            conn.execute(
+                'INSERT INTO sensor_types (sensor_type, unit) VALUES (?, ?)',
+                (sensor_type, unit)
+            )
+            conn.commit()
+        except sqlite3.IntegrityError:
+            return jsonify({"error": f"Sensor type '{sensor_type}' already exists."}), 400
+
+    return jsonify({"status": "success", "sensor_type": sensor_type, "unit": unit}), 201
+
+@app.route('/show_sensor_types', methods=['GET'])
+def test_sensor_types():
+    with get_db() as conn:
+        cursor = conn.execute('SELECT * FROM sensor_types')
+        rows = cursor.fetchall()
+        sensor_types = [dict(row) for row in rows]
+    return jsonify(sensor_types)
 
 if __name__ == '__main__':
     if not os.path.exists(DATABASE):
