@@ -89,6 +89,17 @@ services:
     networks:
       - sensor_network
 
+  # # HADOOP
+  # hadoop_node1:
+  #   build: ./hadoop
+  #   container_name: hadoop_node1
+  #   hostname: namenode
+  #   # command: ["hdfs", "namenode"]
+
+  #   networks:
+  #     - sensor_network
+
+
 networks:
   sensor_network:
     driver: bridge
