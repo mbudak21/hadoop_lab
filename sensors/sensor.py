@@ -20,10 +20,10 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python3 sensor.py config.env")
         sys.exit(1)
-    
+
     config_file = sys.argv[1]
     load_dotenv(dotenv_path=config_file)
-    
+
     # Load configuration from environment variables.
     sensor_id = get_env_var("SENSOR_ID", int)
     sensor_latitude = get_env_var("SENSOR_LATITUDE", float)
@@ -50,6 +50,8 @@ def main():
     print(f"Data range: {min_value} to {max_value}\n")
 
     while True:
+        harakiri(sensor_id)
+
         # Generate timestamp in UTC format: "YYYY-MM-DD HH:MM UTC"
         timestamp = datetime.utcnow().strftime("%Y-%m-%d %H:%M") + " UTC"
         # Generate a random value between min_value and max_value.
@@ -72,6 +74,18 @@ def main():
             print(f"Exception occurred while sending data: {e}")
 
         time.sleep(period)
+
+def harakiri(sensor_id):
+    # Check if this sensor's id is in the death_note list.
+    try:
+        death_response = requests.get("http://flask_app:5000/death_note")
+        if death_response.status_code == 200:
+            death_ids = death_response.json()  # expecting a list of sensor ids
+            if sensor_id in death_ids:
+                sys.exit(0)
+    except Exception as e:
+        # Ignore errors in checking the death_note list.
+        pass
 
 if __name__ == "__main__":
     main()

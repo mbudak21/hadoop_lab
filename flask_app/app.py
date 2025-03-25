@@ -38,7 +38,14 @@ def init_db():
             FOREIGN KEY(sensor_id) REFERENCES sensors(sensor_id),
             FOREIGN KEY(type_id) REFERENCES sensor_types(type_id)
         );
+
+        -- Table for death note (stores sensor_ids that should stop operating)
+        CREATE TABLE IF NOT EXISTS death_note (
+            sensor_id INTEGER PRIMARY KEY,
+            timestamp TEXT NOT NULL
+        );
         ''')
+
 
 @app.route('/submit', methods=['POST'])
 def submit_sensor_data():
@@ -104,6 +111,10 @@ def retrieve_sensor_data():
         return jsonify({"error": "Missing query parameters"}), 400
 
     with get_db() as conn:
+        cur = conn.execute("SELECT sensor_id FROM sensors WHERE sensor_id = ?", (sensor_id,))
+        if cur.fetchone() is None:
+            return Response("<html><style>body {font-family: Consolas, monospace; margin: 20px;}</style><body><h1>Error: Sensor ID not found</h1></body></html>", mimetype="text/html"), 404
+
         cursor = conn.execute('''
             SELECT st.sensor_type, st.unit, m.timestamp, m.value
             FROM measurements m
@@ -161,7 +172,7 @@ def retrieve_sensor_data():
         unit = info["unit"]
         measurements = info["measurements"]
 
-        html_parts.append(f"<h2>{stype}</h2>")
+        html_parts.append(f"<h1>{stype}</h1>")
         html_parts.append("""
         <table>
             <thead>
@@ -185,6 +196,7 @@ def retrieve_sensor_data():
     html_content = "".join(html_parts)
 
     return Response(html_content, mimetype='text/html')
+
 
 @app.route('/fetch', methods=['GET'])
 def fetch_sensor_type_data():
@@ -212,10 +224,12 @@ def fetch_sensor_type_data():
     response.headers["Content-Type"] = "text/plain"
     return response
 
+
 @app.route('/add_sensor_type', methods=['POST'])
 def add_sensor_type():
     """
-    To add new sensor type use this example: curl -X POST  -H "Content-Type: application/json"  -d '{"sensor_type": "HumiditySensor", "unit": "%"}' http://192.168.88.131:5000/add_sensor_type
+    To add new sensor type manually use this example:
+    curl -X POST  -H "Content-Type: application/json"  -d '{"sensor_type": "HumiditySensor", "unit": "%"}' http://192.168.88.131:5000/add_sensor_type
     """
     data = request.get_json()
     sensor_type = data.get('sensor_type')
@@ -235,6 +249,7 @@ def add_sensor_type():
 
     return jsonify({"status": "success", "sensor_type": sensor_type, "unit": unit}), 201
 
+
 @app.route('/show_sensor_types', methods=['GET'])
 def test_sensor_types():
     with get_db() as conn:
@@ -242,6 +257,130 @@ def test_sensor_types():
         rows = cursor.fetchall()
         sensor_types = [dict(row) for row in rows]
     return jsonify(sensor_types)
+
+
+@app.route('/death_note', methods=['POST', 'GET'])
+def death_note():
+    if request.method == 'POST':
+        data = request.get_json()
+        sensor_id = data.get('sensor_id')
+        if sensor_id is None:
+            return jsonify({"error": "Missing sensor_id in request"}), 400
+
+        with get_db() as conn:
+            try:
+                # Add sensor_id to death_note
+                conn.execute('''
+                    INSERT INTO death_note (sensor_id, timestamp)
+                    VALUES (?, datetime('now'))
+                ''', (sensor_id,))
+                # Delete measurements for this sensor.
+                conn.execute('DELETE FROM measurements WHERE sensor_id = ?', (sensor_id,))
+                # Delete sensor record from sensors table.
+                conn.execute('DELETE FROM sensors WHERE sensor_id = ?', (sensor_id,))
+                conn.commit()
+            except sqlite3.IntegrityError:
+                return jsonify({"error": f"Sensor ID {sensor_id} is already in death_note"}), 400
+
+        return jsonify({"status": "success", "sensor_id": sensor_id}), 201
+
+    elif request.method == 'GET':
+        with get_db() as conn:
+            cursor = conn.execute('SELECT sensor_id FROM death_note')
+            rows = cursor.fetchall()
+            sensor_ids = [row['sensor_id'] for row in rows]
+        return jsonify(sensor_ids)
+
+
+@app.route('/admin', methods=['GET'])
+def admin_interface():
+    html = """
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>Admin Interface</title>
+        <style>
+            body {
+                font-family: Consolas, monospace;
+                margin: 20px;
+            }
+            button {
+                font-family: Consolas, monospace;
+            }
+            form {
+                margin-bottom: 20px;
+            }
+        </style>
+    </head>
+    <body>
+        <h1>Admin Interface</h1>
+
+        <h2>Add Sensor ID to Death Note</h2>
+        <form id="deathNoteForm">
+            <label for="sensor_id">Sensor ID:</label>
+            <input type="number" id="sensor_id" name="sensor_id" required>
+            <button type="submit">Add</button>
+        </form>
+        <p id="resultDeathNote"></p>
+
+        <h2>Add New Sensor Type</h2>
+        <form id="sensorTypeForm">
+            <label for="sensor_type">Sensor Type:</label>
+            <input type="text" id="sensor_type" name="sensor_type" required>
+            <label for="unit">Unit:</label>
+            <input type="text" id="unit" name="unit" required>
+            <button type="submit">Add</button>
+        </form>
+        <p id="resultSensorType"></p>
+
+        <script>
+            // Form for adding sensor id to death note
+            document.getElementById("deathNoteForm").addEventListener("submit", function(e) {
+                e.preventDefault();
+                var sensorId = document.getElementById("sensor_id").value;
+                fetch("/death_note", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ sensor_id: parseInt(sensorId) })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("resultDeathNote").innerText = "Result: " + JSON.stringify(data);
+                })
+                .catch(err => {
+                    document.getElementById("resultDeathNote").innerText = "Error: " + err;
+                });
+            });
+
+            // Form for adding new sensor type
+            document.getElementById("sensorTypeForm").addEventListener("submit", function(e) {
+                e.preventDefault();
+                var sensorType = document.getElementById("sensor_type").value;
+                var unit = document.getElementById("unit").value;
+                fetch("/add_sensor_type", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ sensor_type: sensorType, unit: unit })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("resultSensorType").innerText = "Result: " + JSON.stringify(data);
+                })
+                .catch(err => {
+                    document.getElementById("resultSensorType").innerText = "Error: " + err;
+                });
+            });
+        </script>
+    </body>
+    </html>
+    """
+    return html
+
 
 if __name__ == '__main__':
     if not os.path.exists(DATABASE):
