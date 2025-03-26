@@ -89,15 +89,88 @@ services:
     networks:
       - sensor_network
 
-  # # HADOOP
-  # hadoop_node1:
-  #   build: ./hadoop
-  #   container_name: hadoop_node1
-  #   hostname: namenode
-  #   # command: ["hdfs", "namenode"]
+  namenode:
+    build: ./hadoop
+    container_name: namenode
+    hostname: namenode
+    environment:
+      - NODE_TYPE=namenode
+      - HDFS_NAMENODE_USER=root
+      - HDFS_DATANODE_USER=root
+      - HDFS_SECONDARYNAMENODE_USER=root
+    ports:
+      - "9870:9870"
+    networks:
+      - sensor_network
 
-  #   networks:
-  #     - sensor_network
+  datanode1:
+    build: ./hadoop
+    container_name: datanode1
+    hostname: datanode1
+    environment:
+      - NODE_TYPE=datanode
+      - NAMENODE_HOST=namenode
+      - HDFS_DATANODE_USER=root
+      - HDFS_NAMENODE_USER=root
+      - HDFS_SECONDARYNAMENODE_USER=root
+    depends_on:
+      - namenode
+    networks:
+      - sensor_network
+
+  datanode2:
+    build: ./hadoop
+    container_name: datanode2
+    hostname: datanode2
+    environment:
+      - NODE_TYPE=datanode
+      - NAMENODE_HOST=namenode
+      - HDFS_DATANODE_USER=root
+      - HDFS_NAMENODE_USER=root
+      - HDFS_SECONDARYNAMENODE_USER=root
+    depends_on:
+      - namenode
+    networks:
+      - sensor_network
+
+  resourcemanager:
+    build: ./hadoop
+    container_name: resourcemanager
+    hostname: resourcemanager
+    environment:
+      - NODE_TYPE=resourcemanager
+      - YARN_RESOURCEMANAGER_USER=root
+      - YARN_NODEMANAGER_USER=root
+    ports:
+      - "8088:8088"
+    networks:
+      - sensor_network
+
+  nodemanager1:
+    build: ./hadoop
+    container_name: nodemanager1
+    hostname: nodemanager1
+    environment:
+      - NODE_TYPE=nodemanager
+      - RESOURCEMANAGER_HOST=resourcemanager
+      - YARN_NODEMANAGER_USER=root
+      - YARN_RESOURCEMANAGER_USER=root
+    depends_on:
+      - resourcemanager
+    networks:
+      - sensor_network
+
+  nodemanager2:
+    build: ./hadoop
+    container_name: nodemanager2
+    hostname: nodemanager2
+    environment:
+      - NODE_TYPE=nodemanager
+      - RESOURCEMANAGER_HOST=resourcemanager
+      - YARN_NODEMANAGER_USER=root
+      - YARN_RESOURCEMANAGER_USER=root
+    depends_on:
+      - resourcemanager
 
 
 networks:
